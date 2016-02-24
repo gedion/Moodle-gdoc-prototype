@@ -304,7 +304,7 @@ class repository_googledocs extends repository {
 
         $files = array();
         $folders = array();
-        $fields = "items(id,title,mimeType,downloadUrl,fileExtension,exportLinks,modifiedDate,fileSize,thumbnailLink)";
+        $fields = "items(id,title,mimeType,downloadUrl,fileExtension,exportLinks,modifiedDate,fileSize,thumbnailLink,alternateLink)";
         $params = array('q' => $q, 'fields' => $fields);
 
         try {
@@ -441,7 +441,42 @@ class repository_googledocs extends repository {
      * @return string file reference.
      */
     public function get_file_reference($source) {
-        return clean_param($source, PARAM_URL);
+        global $USER, $CFG;
+        $reference = new stdClass;
+        $reference->path = $source;
+        $reference->userid = $USER->id;
+        $reference->username = fullname($USER);
+        $usefilereference = optional_param('usefilereference', false, PARAM_BOOL);
+        if ($usefilereference) {
+           $reference->url = $this->build_doc_uri($source);
+           return serialize($reference);
+        } else {
+           return clean_param($source, PARAM_URL);
+        }
+    }
+
+    /**
+     * Build a godc url based on doc id.
+     *
+     * @param string $ref of the file.
+     * @return string document url.
+     */
+    private function build_doc_uri($ref){
+       $parts = parse_url($ref);
+       parse_str($parts['query'], $query);
+       $id = $query['id'];
+       return "https://docs.google.com/document/d/$id/edit?usp=drivesdk";
+    }
+
+    /**
+     * Return external link.
+     *
+     * @param string $ref of the file.
+     * @return string document url.
+     */
+
+    public function get_link($ref){
+       return $this->build_doc_uri($ref);
     }
 
     /**
@@ -462,9 +497,22 @@ class repository_googledocs extends repository {
      * @return int
      */
     public function supported_returntypes() {
-        return FILE_INTERNAL;
+        return FILE_INTERNAL | FILE_EXTERNAL | FILE_REFERENCE;
     }
 
+    /**
+     * Repository method to serve the referenced file
+
+     * @param stored_file $storedfile the file that contains the reference
+     * @param int $lifetime Number of seconds before the file should expire from caches (null means $CFG->filelifetime)
+     * @param int $filter 0 (default)=no filtering, 1=all files, 2=html files only
+     * @param bool $forcedownload If true (default false), forces download of file rather than view in browser/plugin
+     * @param array $options additional options affecting the file serving
+     */
+    public function send_file($storedfile, $lifetime=null , $filter=0, $forcedownload=false, array $options = null) {
+        $ref = unserialize($storedfile->get_reference());
+        redirect($ref->url);
+    }
     /**
      * Return names of the general options.
      * By default: no general option name.
