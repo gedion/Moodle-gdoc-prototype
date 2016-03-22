@@ -41,7 +41,7 @@ Feature: An admin or instructor can enable repository and copy or add a google d
     And I click on ".file-picker input[name='linktype'][value='4']" "css_element"
     And I press "Select this file"
     And I press "Save and return to course"
-    And I click on ".section .resource .instancename" "css_element"
+    And I follow "Create an alias/shortcut to a gdoc file"
     Then "#docs-drive-logo" "css_element" should exist
     When I am on site homepage
     And I follow "Course1"
@@ -54,8 +54,8 @@ Feature: An admin or instructor can enable repository and copy or add a google d
     Then I click on ".fp-content img[title='Test Doc.rtf']" "css_element"
     And I press "Select this file"
     And I press "Save and return to course"
-    And I click on "#section-1 .resource .instancename" "css_element"
+    #Then following "Make a copy of gdoc file" should download between "3750" and "3800" bytes
+    And I click on "Make a copy of gdoc file"
     #Manually check download
     #To Do: Validate download
     #Then I should see "Rich Text Document"
-

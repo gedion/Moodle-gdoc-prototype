@@ -448,7 +448,7 @@ class repository_googledocs extends repository {
         $reference->username = fullname($USER);
         $usefilereference = optional_param('usefilereference', false, PARAM_BOOL);
         if ($usefilereference) {
-           $reference->url = $this->build_doc_uri($source);
+           $reference->url = $this->build_edit_doc_url($source);
            return serialize($reference);
         } else {
            return clean_param($source, PARAM_URL);
@@ -456,16 +456,29 @@ class repository_googledocs extends repository {
     }
 
     /**
-     * Build a godc url based on doc id.
+     * Build a gdoc url based on doc id.
      *
      * @param string $ref of the file.
      * @return string document url.
      */
-    private function build_doc_uri($ref){
+    private function build_edit_doc_url($ref){
        $parts = parse_url($ref);
        parse_str($parts['query'], $query);
        $id = $query['id'];
-       return "https://docs.google.com/document/d/$id/edit?usp=drivesdk";
+       $file = $this->service->files->get($id);
+       return $file->alternateLink;
+    }
+
+    /**
+     * Extract a gdoc id from doc url.
+     *
+     * @param string $ref of the file.
+     * @return string document url.
+     */
+    private function get_doc_id_from_url($ref) {
+       $parts = explode('/', rtrim($ref->url, '/'));
+       $id = $parts[5];
+       return $id;
     }
 
     /**
@@ -476,7 +489,7 @@ class repository_googledocs extends repository {
      */
 
     public function get_link($ref){
-       return $this->build_doc_uri($ref);
+       return $this->build_edit_doc_url($ref);
     }
 
     /**
@@ -502,7 +515,7 @@ class repository_googledocs extends repository {
 
     /**
      * Repository method to serve the referenced file
-
+     *
      * @param stored_file $storedfile the file that contains the reference
      * @param int $lifetime Number of seconds before the file should expire from caches (null means $CFG->filelifetime)
      * @param int $filter 0 (default)=no filtering, 1=all files, 2=html files only
@@ -510,8 +523,45 @@ class repository_googledocs extends repository {
      * @param array $options additional options affecting the file serving
      */
     public function send_file($storedfile, $lifetime=null , $filter=0, $forcedownload=false, array $options = null) {
-        $ref = unserialize($storedfile->get_reference());
-        redirect($ref->url);
+        if ($forcedownload) {
+            if(!$this->check_login()){
+                //TO DO: Implement a google login page and redirect back after login
+                throw new repository_exception('repositoryerror', 'repository', '', 'Login into google first');
+            }
+            $id = $this->get_doc_id_from_url(unserialize($storedfile->get_reference()));
+            $file = $this->service->files->get($id);
+            if (isset($file['fileExtension'])) {
+                // The file has an extension, therefore there is a download link.
+                $url = $file['downloadUrl'];
+            } else {
+                // The file is probably a Google Doc file, we get the corresponding export link.
+                // This should be improved by allowing the user to select the type of export they'd like.
+                $type = str_replace('application/vnd.google-apps.', '', $file['mimeType']);
+                $exportType = '';
+                switch ($type){
+                    case 'document':
+                        $exportType = 'application/rtf';
+                        break;
+                    case 'presentation':
+                        $exportType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+                        break;
+                    case 'spreadsheet':
+                        $exportType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                        break;
+                }
+                // Skips invalid/unknown types.
+                if (!isset($file['exportLinks'][$exportType])) {
+                    throw new repository_exception('repositoryerror', 'repository', '', 'Uknown file type');
+                }
+                $url= $file['exportLinks'][$exportType];
+            }
+            error_log('url ' .$url);
+            header('Location: ' . $url);
+            die;
+        } else {
+            $ref = unserialize($storedfile->get_reference());
+            redirect($ref->url);
+        }
     }
     /**
      * Return names of the general options.
