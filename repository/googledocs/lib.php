@@ -354,8 +354,8 @@ class repository_googledocs extends repository {
                             $exportType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
                             break;
                         case 'spreadsheet':
-                            $title = $item['title'] . '.xlsx';
-                            $exportType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                            $title = $item['title'] . '.csv';
+                            $exportType = 'text/csv';
                             break;
                     }
                     // Skips invalid/unknown types.
@@ -368,7 +368,7 @@ class repository_googledocs extends repository {
                 // of the array because Google Drive allows files with identical names.
                 $files[$title . $item['id']] = array(
                     'title' => $title,
-                    'source' => $source,
+                    'source' => $item['id'],
                     'date' => strtotime($item['modifiedDate']),
                     'size' => isset($item['fileSize']) ? $item['fileSize'] : null,
                     'thumbnail' => $OUTPUT->pix_url(file_extension_icon($title, 64))->out(false),
@@ -412,11 +412,11 @@ class repository_googledocs extends repository {
      * @param string $file name to save the file to.
      * @return string JSON encoded array of information about the file.
      */
-    public function get_file($reference, $filename = '') {
-        global $CFG;
-
+    public function get_file($source, $filename = '') {
+        global $USER, $CFG;
+        $url = $this->get_doc_url_by_doc_id($source, $downloadUrl = true);
         $auth = $this->client->getAuth();
-        $request = $auth->authenticatedRequest(new Google_Http_Request($reference));
+        $request = $auth->authenticatedRequest(new Google_Http_Request($url));
         if ($request->getResponseHttpCode() == 200) {
             $path = $this->prepare_file($filename);
             $content = $request->getResponseBody();
@@ -424,35 +424,11 @@ class repository_googledocs extends repository {
                 @chmod($path, $CFG->filepermissions);
                 return array(
                     'path' => $path,
-                    'url' => $reference
+                    'url' => $url
                 );
             }
         }
         throw new repository_exception('cannotdownload', 'repository');
-    }
-
-    /**
-     * Prepare file reference information.
-     *
-     * We are using this method to clean up the source to make sure that it
-     * is a valid source.
-     *
-     * @param string $source of the file.
-     * @return string file reference.
-     */
-    public function get_file_reference($source) {
-        global $USER, $CFG;
-        $reference = new stdClass;
-        $reference->path = $source;
-        $reference->userid = $USER->id;
-        $reference->username = fullname($USER);
-        $usefilereference = optional_param('usefilereference', false, PARAM_BOOL);
-        if ($usefilereference) {
-           $reference->url = $this->build_edit_doc_url($source);
-           return serialize($reference);
-        } else {
-           return clean_param($source, PARAM_URL);
-        }
     }
 
     /**
@@ -461,24 +437,8 @@ class repository_googledocs extends repository {
      * @param string $ref of the file.
      * @return string document url.
      */
-    private function build_edit_doc_url($ref){
-       $parts = parse_url($ref);
-       parse_str($parts['query'], $query);
-       $id = $query['id'];
-       $file = $this->service->files->get($id);
-       return $file->alternateLink;
-    }
-
-    /**
-     * Extract a gdoc id from doc url.
-     *
-     * @param string $ref of the file.
-     * @return string document url.
-     */
-    private function get_doc_id_from_url($ref) {
-       $parts = explode('/', rtrim($ref->url, '/'));
-       $id = $parts[5];
-       return $id;
+    private function build_edit_doc_url($id) {
+       return $this->service->files->get($id)->alternateLink;
     }
 
     /**
@@ -528,39 +488,46 @@ class repository_googledocs extends repository {
                 //TO DO: Implement a google login page and redirect back after login
                 throw new repository_exception('repositoryerror', 'repository', '', 'Login into google first');
             }
-            $id = $this->get_doc_id_from_url(unserialize($storedfile->get_reference()));
-            $file = $this->service->files->get($id);
-            if (isset($file['fileExtension'])) {
-                // The file has an extension, therefore there is a download link.
-                $url = $file['downloadUrl'];
-            } else {
-                // The file is probably a Google Doc file, we get the corresponding export link.
-                // This should be improved by allowing the user to select the type of export they'd like.
-                $type = str_replace('application/vnd.google-apps.', '', $file['mimeType']);
-                $exportType = '';
-                switch ($type){
-                    case 'document':
-                        $exportType = 'application/rtf';
-                        break;
-                    case 'presentation':
-                        $exportType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-                        break;
-                    case 'spreadsheet':
-                        $exportType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-                        break;
-                }
-                // Skips invalid/unknown types.
-                if (!isset($file['exportLinks'][$exportType])) {
-                    throw new repository_exception('repositoryerror', 'repository', '', 'Uknown file type');
-                }
-                $url= $file['exportLinks'][$exportType];
-            }
-            error_log('url ' .$url);
+            $id = $storedfile->get_reference();
+            $url = $this->get_doc_url_by_doc_id($id);
             header('Location: ' . $url);
             die;
         } else {
-            $ref = unserialize($storedfile->get_reference());
-            redirect($ref->url);
+            $source = $storedfile->get_reference();
+            $url = $this->build_edit_doc_url($source);
+            redirect($url);
+        }
+    }
+
+    private function get_doc_url_by_doc_id($id, $downloadUrl=false) {
+        $file = $this->service->files->get($id);
+        if (isset($file['fileExtension'])) {
+            if ($downloadUrl) {
+                return $file['downloadUrl'];
+            } else {
+                return $file['webContentLink'];
+            }
+        } else {
+            // The file is probably a Google Doc file, we get the corresponding export link.
+            // This should be improved by allowing the user to select the type of export they'd like.
+            $type = str_replace('application/vnd.google-apps.', '', $file['mimeType']);
+            $exportType = '';
+            switch ($type){
+                case 'document':
+                    $exportType = 'application/rtf';
+                    break;
+                case 'presentation':
+                    $exportType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+                    break;
+                case 'spreadsheet':
+                    $exportType = 'text/csv';
+                    break;
+            }
+            // Skips invalid/unknown types.
+            if (!isset($file['exportLinks'][$exportType])) {
+                throw new repository_exception('repositoryerror', 'repository', '', 'Uknown file type');
+            }
+            return $file['exportLinks'][$exportType];
         }
     }
     /**
