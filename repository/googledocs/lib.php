@@ -62,6 +62,7 @@ class repository_googledocs extends repository {
      */
     const CALLBACKURL = '/admin/oauth2callback.php';
 
+    private static $GOOGLE_LIVE_DOCS_TYPES = array('document', 'presentation', 'spreadsheet');
     /**
      * Constructor.
      *
@@ -432,16 +433,6 @@ class repository_googledocs extends repository {
     }
 
     /**
-     * Build a gdoc url based on doc id.
-     *
-     * @param string $ref of the file.
-     * @return string document url.
-     */
-    private function build_edit_doc_url($id) {
-       return $this->service->files->get($id)->alternateLink;
-    }
-
-    /**
      * Return external link.
      *
      * @param string $ref of the file.
@@ -449,7 +440,7 @@ class repository_googledocs extends repository {
      */
 
     public function get_link($ref){
-       return $this->build_edit_doc_url($ref);
+       return $this->service->files->get($ref)->alternateLink;
     }
 
     /**
@@ -483,19 +474,24 @@ class repository_googledocs extends repository {
      * @param array $options additional options affecting the file serving
      */
     public function send_file($storedfile, $lifetime=null , $filter=0, $forcedownload=false, array $options = null) {
+        $id = $storedfile->get_reference();
         if ($forcedownload) {
             if(!$this->check_login()){
                 //TO DO: Implement a google login page and redirect back after login
                 throw new repository_exception('repositoryerror', 'repository', '', 'Login into google first');
             }
-            $id = $storedfile->get_reference();
             $url = $this->get_doc_url_by_doc_id($id);
             header('Location: ' . $url);
             die;
         } else {
-            $source = $storedfile->get_reference();
-            $url = $this->build_edit_doc_url($source);
-            redirect($url);
+            $file = $this->service->files->get($id);
+            $type = str_replace('application/vnd.google-apps.', '', $file['mimeType']);
+            if (in_array($type, self::$GOOGLE_LIVE_DOCS_TYPES)) {
+                redirect($file->alternateLink);
+            } else {
+                header("Location: " . $file->webContentLink);
+                die;
+            }
         }
     }
 
