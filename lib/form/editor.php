@@ -341,7 +341,7 @@ class MoodleQuickForm_editor extends HTML_QuickForm_element {
             $args = new stdClass();
             // need these three to filter repositories list
             $args->accepted_types = array('web_image');
-            $args->return_types = (FILE_INTERNAL | FILE_REFERENCE);
+            $args->return_types = $this->_options['return_types'];
             $args->context = $ctx;
             $args->env = 'filepicker';
             // advimage plugin
