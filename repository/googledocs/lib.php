@@ -485,12 +485,11 @@ class repository_googledocs extends repository {
             die;
         } else {
             $file = $this->service->files->get($id);
-            $type = str_replace('application/vnd.google-apps.', '', $file['mimeType']);
-            if (in_array($type, self::$GOOGLE_LIVE_DOCS_TYPES)) {
+            if ($file->editable) {
+                // If resource is editable, then display using editor link.
                 redirect($file->alternateLink);
             } else {
-                header("Location: " . $file->webContentLink);
-                die;
+                redirect($file->embedLink);
             }
         }
     }
