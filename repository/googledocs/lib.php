@@ -78,6 +78,7 @@ class repository_googledocs extends repository {
         $callbackurl = new moodle_url(self::CALLBACKURL);
 
         $this->client = get_google_client();
+        $this->client->setAccessType("offline");
         $this->client->setClientId(get_config('googledocs', 'clientid'));
         $this->client->setClientSecret(get_config('googledocs', 'secret'));
         $this->client->setScopes(array(Google_Service_Drive::DRIVE_READONLY));
@@ -120,6 +121,10 @@ class repository_googledocs extends repository {
         if ($code = optional_param('oauth2code', null, PARAM_RAW)) {
             $this->client->authenticate($code);
             $this->store_access_token($this->client->getAccessToken());
+            $this->save_refresh_token();
+        } else if ($revoke = optional_param('revoke', null, PARAM_RAW)) {
+            $this->revoke_token();
+            redirect(optional_param('state', null, PARAM_RAW));
         }
     }
 
@@ -129,8 +134,16 @@ class repository_googledocs extends repository {
      * @return bool true when logged in.
      */
     public function check_login() {
-        if ($token = $this->get_access_token()) {
-            $this->client->setAccessToken($token);
+        global $USER, $DB;
+        $user_access = $DB->get_record('google_refreshtokens', array ('userid'=>$USER->id));
+        if (!is_null($user_access->refreshtokenid)) {
+            try {
+                $this->client->refreshToken($user_access->refreshtokenid);
+            } catch(Exception $e) {
+                $this->revoke_token();
+            }
+            $token = $this->client->getAccessToken();
+            $this->store_access_token($token);
             return true;
         }
         return false;
@@ -438,7 +451,6 @@ class repository_googledocs extends repository {
      * @param string $ref of the file.
      * @return string document url.
      */
-
     public function get_link($ref){
        return $this->service->files->get($ref)->alternateLink;
     }
@@ -475,12 +487,11 @@ class repository_googledocs extends repository {
      */
     public function send_file($storedfile, $lifetime=null , $filter=0, $forcedownload=false, array $options = null) {
         $id = $storedfile->get_reference();
+        $token = json_decode($this->get_access_token());
+        header('Authorization: Bearer ' . $token->access_token);
         if ($forcedownload) {
-            if(!$this->check_login()){
-                //TO DO: Implement a google login page and redirect back after login
-                throw new repository_exception('repositoryerror', 'repository', '', 'Login into google first');
-            }
-            $url = $this->get_doc_url_by_doc_id($id);
+            $downloadUrl = true;
+            $url = $this->get_doc_url_by_doc_id($id, $downloadUrl);
             header('Location: ' . $url);
             die;
         } else {
@@ -489,17 +500,18 @@ class repository_googledocs extends repository {
             if (in_array($type, self::$GOOGLE_LIVE_DOCS_TYPES)) {
                 redirect($file->alternateLink);
             } else {
-                header("Location: " . $file->webContentLink);
+                header("Location: " . $file->downloadUrl . '&access_token='. $token->access_token);
                 die;
             }
         }
     }
 
-    private function get_doc_url_by_doc_id($id, $downloadUrl=false) {
+    private function get_doc_url_by_doc_id($id, $download_url=false) {
         $file = $this->service->files->get($id);
         if (isset($file['fileExtension'])) {
-            if ($downloadUrl) {
-                return $file['downloadUrl'];
+            if ($download_url) {
+                $token = json_decode($this->get_access_token());
+                return $file['downloadUrl']. '&access_token='. $token->access_token;
             } else {
                 return $file['webContentLink'];
             }
@@ -561,6 +573,93 @@ class repository_googledocs extends repository {
         $strrequired = get_string('required');
         $mform->addRule('clientid', $strrequired, 'required', null, 'client');
         $mform->addRule('secret', $strrequired, 'required', null, 'client');
+    }
+
+    /**
+     * Accessor to native revokeToken method
+     *
+     */
+    private function revoke_token() {
+        $this->client->revokeToken();
+        $this->delete_refresh_token();
+        $this->store_access_token(null);
+    }
+
+    /**
+     * Return the revoke form.
+     *
+     */
+    public function get_revoke_url($callbackurl) {
+
+        $returnurl = new moodle_url($callbackurl);
+        $returnurl->param('revoke', 'yes');
+
+        $url = new moodle_url('/repository/repository_callback.php');
+        $url->param('state', $returnurl->out_as_local_url(false));
+        $url->param('callback', 'yes');
+        $url->param('repo_id', $this->id);
+        $url->param('revoke', 'yes');
+        $url->param('sesskey', sesskey());
+        return '<a target="_blank" href="'.$url->out(false).'">'.get_string('revokeyourgoogleaccount', 'repository_googledocs').'</a>';
+    }
+
+
+    /**
+     * Return the login form.
+     *
+     * @return void|array for ajax.
+     */
+    public function get_login_url($callbackurl) {
+
+        $callbackurl = (is_null($callbackurl) ? '/repository/repository_callback.php' : $callbackurl);
+        $returnurl = new moodle_url($callbackurl);
+        $returnurl->param('callback', 'yes');
+        $returnurl->param('repo_id', $this->id);
+        $returnurl->param('sesskey', sesskey());
+
+        $url = new moodle_url($this->client->createAuthUrl());
+        $url->param('state', $returnurl->out_as_local_url(false));
+            return '<a target="_blank" href="'.$url->out(false).'">'.get_string('syncyourgoogleaccount', 'repository_googledocs').'</a>';
+    }
+
+    /**
+     * Removes the refresh token from database.
+     *
+     */
+    private function delete_refresh_token() {
+        global $DB, $USER;
+        $DB->delete_records('google_refreshtokens', array('userid' =>$USER->id));
+    }
+
+    /**
+     * Saves the refresh token to database.
+     *
+     */
+    private function save_refresh_token() {
+        global $DB, $USER;
+        $refreshToken = $this->client->getRefreshToken();
+        if (!is_null($refreshToken)) {
+            $DB->insert_record('google_refreshtokens', array( 'userid' => $USER->id, 'refreshtokenid' => $refreshToken));
+        }
+    }
+}
+
+/**
+ * This function extends the navigation with the google docs items for user settings node.
+ *
+ * @param navigation_node $navigation  The navigation node to extend
+ * @param stdClass        $user        The user object
+ * @param context         $usercontext The context of the user
+ * @param stdClass        $course      The course to object for the tool
+ * @param context         $coursecontext     The context of the course
+ */
+function repository_googledocs_extend_navigation_user_settings($navigation, $user, $usercontext, $course, $coursecontext) {
+    $url = new moodle_url('/repository/googledocs/preference.php');
+    $subsnode = navigation_node::create(get_string('syncyourgoogleaccount', 'repository_googledocs'), $url,
+            navigation_node::TYPE_SETTING, null, 'monitor', new pix_icon('i/settings', ''));
+
+    if (isset($subsnode) && !empty($navigation)) {
+        $navigation->add_node($subsnode);
     }
 }
 // Icon from: http://www.iconspedia.com/icon/google-2706.html.

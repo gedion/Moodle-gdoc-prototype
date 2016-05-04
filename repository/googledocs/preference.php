@@ -15,16 +15,32 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version details
+ * User Google Drive settings page.
  *
  * @package    repository
  * @subpackage googledocs
- * @copyright  2009 Dan Poltawski <talktodan@gmail.com>
+ * @copyright  2012 onwards Totara Learning Solutions Ltd {@link http://www.totaralms.com/}
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @author     Gedion Woldeselassie <gedion@umn.edu>
  */
+require_once(dirname(dirname(dirname(__FILE__))) . '/config.php');
+require_once($CFG->dirroot . '/repository/googledocs/preference_form.php');
 
-defined('MOODLE_INTERNAL') || die();
+require_login();
 
-$plugin->version   = 2016050100;        // The current plugin version (Date: YYYYMMDDXX).
-$plugin->requires  = 2015111000;        // Requires this Moodle version.
-$plugin->component = 'repository_googledocs'; // Full name of the plugin (used for diagnostics).
+$context = context_user::instance($USER->id);
+
+$PAGE->set_url(new moodle_url('/repository/googledocs/preference.php'));
+$PAGE->set_context($context);
+
+$title = get_string('googledocsdetails', 'repository_googledocs');
+$PAGE->set_title($title);
+$PAGE->set_heading(fullname($USER));
+$PAGE->set_pagelayout('mydashboard');
+
+$form = new edit_repository_googledocs_form();
+
+echo $OUTPUT->header();
+echo $OUTPUT->heading($title);
+$form->display();
+echo $OUTPUT->footer();
