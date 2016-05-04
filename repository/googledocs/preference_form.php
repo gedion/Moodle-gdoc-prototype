@@ -51,18 +51,23 @@ class edit_repository_googledocs_form extends moodleform {
         $mform->addHelpButton('googledocsheader', 'googledriveconnection', 'repository_googledocs');
         $mform->addElement('static', 'url', get_string('url'), GOOGLE_DRIVE_URL);
 
-        list($redirect_url, $status) = $this->get_redirect_url_and_connection_status();
+        list($redirecturl, $status, $email) = $this->get_redirect_url_and_connection_status();
         if ($status == 'connected') {
-            $status = html_writer::tag('span', get_string('connected', 'repository_googledocs'),
+            $statuselement = html_writer::tag('span', get_string('connected', 'repository_googledocs'),
                 array('class' => 'connected', 'id' => 'connection-status'));
         } else {
-            $status = html_writer::tag('span', get_string('notconnected', 'repository_googledocs'),
+            $statuselement = html_writer::tag('span', get_string('notconnected', 'repository_googledocs'),
                 array('class' => 'notconnected', 'id' => 'connection-status'));
         }
-        $mform->addElement('static', 'status', get_string('status'), $status);
-        $mform->addElement('static', 'googledocs', '', $redirect_url);
-        $mform->addHelpButton('googledocs', 'googledriveconnection', 'repository_googledocs');
-
+        $mform->addElement('static', 'status', get_string('status'), $statuselement);
+        if ($email) {
+            $mform->addElement('static', 'email', get_string('email'), $email);
+            $mform->addHelpButton('email', 'googleemail', 'repository_googledocs');
+        }
+        $mform->addElement('static', 'googledocs', '', $redirecturl);
+        if ($status != 'connected') {
+            $mform->addHelpButton('googledocs', 'googledriveconnection', 'repository_googledocs');
+        }
     }
 
     /**
@@ -71,31 +76,31 @@ class edit_repository_googledocs_form extends moodleform {
      * a login status
      */
     private function get_redirect_url_and_connection_status() {
-        global $DB, $USER, $PAGE;
+        global $DB, $USER;
 
-        $page_url = $PAGE->__get('url');
-        $googledocs_repo = $DB->get_record('repository', array ('type'=>'googledocs'));
-        $google_refreshtoken = $DB->get_record('google_refreshtokens', array ('userid'=>$USER->id));
-        $repo_options = array(
+        $googledocsrepo = $DB->get_record('repository', array ('type'=>'googledocs'));
+        $googlerefreshtoken = $DB->get_record('google_refreshtokens', array ('userid'=>$USER->id));
+        $repooptions = array(
             'ajax' => false,
             'mimetypes' => array('.mp3')
         );
 
         $context = context_user::instance($USER->id);
-        $repo = new repository_googledocs($googledocs_repo->id, $context, $repo_options);
-
+        $repo = new repository_googledocs($googledocsrepo->id, $context, $repooptions);
         $code = optional_param('oauth2code', null, PARAM_RAW);
-
-        if (is_null($google_refreshtoken->refreshtokenid) && empty($code)) {
-            $redirect_url = $repo->get_login_url($page_url);
+        if (!$googlerefreshtoken || (is_null($googlerefreshtoken->refreshtokenid) && empty($code))) {
+            $redirecturl = $repo->get_login_url();
+            $email = null;
+            $status = "notconnected";
         } else {
             if ($code) {
                 $repo->callback();
             }
             $status = "connected";
-            $redirect_url = $repo->get_revoke_url($page_url);
+            $redirecturl = $repo->get_revoke_url();
+            $email = $repo->get_user_info()->email;
         }
-        return array($redirect_url, $status);
+        return array($redirecturl, $status, $email);
     }
 
 }

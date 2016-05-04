@@ -58,8 +58,14 @@ function xmldb_repository_googledocs_upgrade($oldversion) {
         if (!$dbman->table_exists($table)) {
             $dbman->create_table($table);
         }
+        $index = new xmldb_index('userid', XMLDB_INDEX_UNIQUE, array('userid'));
 
-        upgrade_block_savepoint(true, 2016050100, 'gaccess');
+        // Conditionally launch add index useridindex.
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+
+        upgrade_plugin_savepoint(true, 2016050100, 'repository', 'googledocs');
     }
 
     // Moodle v2.3.0 release upgrade line

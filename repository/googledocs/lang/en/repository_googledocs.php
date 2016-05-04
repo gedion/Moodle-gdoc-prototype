@@ -33,10 +33,14 @@ $string['pluginname'] = 'Google Drive';
 $string['secret'] = 'Secret';
 $string['driveconnection'] = 'Google Drive connection';
 $string['servicenotenabled'] = 'Access not configured. Make sure the service \'Drive API\' is enabled';
-$string['syncyourgoogleaccount'] = 'Connect your Google account with Moodle';
+$string['syncyourgoogleaccount'] = 'Manage your Google account';
+$string['connectyourgoogleaccount'] = 'Connect your Google account with Moodle';
 $string['revokeyourgoogleaccount'] = 'Disconnect your Google account from Moodle';
 $string['googledocsdetails'] = 'Google Drive settings';
 $string['connected'] = 'Connected';
 $string['notconnected'] = 'Not connected';
 $string['googledriveconnection'] = 'Sign in with your email';
 $string['googledriveconnection_help'] = 'Once you authorize us to see your Google Drive you\'ll be able to submit your assignments directly from Google Drive, and create and share documents with members of your classes.';
+$string['googleemail'] = 'Email address';
+$string['googleemail_help'] = 'The email address associated with your Google account.';
+
