@@ -139,6 +139,7 @@ class repository_googledocs extends repository {
     public function check_login() {
         global $USER, $DB;
         $googlerefreshtokens = $DB->get_record('google_refreshtokens', array ('userid'=>$USER->id));
+        
         if ($googlerefreshtokens && !is_null($googlerefreshtokens->refreshtokenid)) {
             try {
                 $this->client->refreshToken($googlerefreshtokens->refreshtokenid);
@@ -635,8 +636,8 @@ class repository_googledocs extends repository {
      *
      */
     private function delete_refresh_token() {
-        global $DB, $USER;
-        $DB->delete_records('google_refreshtokens', array('userid' =>$USER->id));
+        global $DB, $USER, $CFG;
+        $DB->execute("UPDATE ".$CFG->prefix."google_refreshtokens SET refreshtokenid=NULL WHERE userid=".$USER->id);
     }
 
     /**
@@ -645,11 +646,115 @@ class repository_googledocs extends repository {
      */
     private function save_refresh_token() {
         global $DB, $USER;
-        $refreshtoken = $this->client->getRefreshToken();
-        if (!is_null($refreshtoken)) {
-            $DB->insert_record('google_refreshtokens', array( 'userid' => $USER->id, 'refreshtokenid' => $refreshtoken));
+
+        $newdata = new stdClass();
+        $newdata->refreshtokenid = $this->client->getRefreshToken();
+        $newdata->gmail = $this->get_user_info()->email;
+
+        if(!is_null($newdata->refreshtokenid) && !is_null($newdata->gmail)) {
+            $rectoken = $DB->get_record('google_refreshtokens', array ('userid'=>$USER->id));
+            if ($rectoken) {
+                $newdata->id = $rectoken->id;
+                if($newdata->gmail === $rectoken->gmail){
+                    unset($newdata->gmail);
+                }
+                $DB->update_record('google_refreshtokens', $newdata);
+            } else {
+                $newdata->userid = $USER->id;
+                $newdata->gmail_active = 1;
+                $DB->insert_record('google_refreshtokens', $newdata);
+            }
         }
     }
+
+    /**
+    * Retrieve a list of File resources for a particular user.
+    *
+    * @param Google_Service_Drive $service Drive API service instance.
+    * @return Array List of Google_Service_Drive_DriveFile resources.
+    */
+   function retrieveAllFiles() {
+     $result = array();
+     $pageToken = NULL;
+
+     do {
+       try {
+         $parameters = array();
+         if ($pageToken) {
+           $parameters['pageToken'] = $pageToken;
+         }
+         $files = $this->service->files->listFiles($parameters);
+
+         $result = array_merge($result, $files->getItems());
+         $pageToken = $files->getNextPageToken();
+       } catch (Exception $e) {
+         print "An error occurred: " . $e->getMessage();
+         $pageToken = NULL;
+       }
+     } while ($pageToken);
+     return $result;
+   }
+
+    
+    /**
+    * Retrieve a list of permissions.
+    *
+    * @param Google_Service_Drive $service Drive API service instance.
+    * @param String $fileId ID of the file to retrieve permissions for.
+    * @return Array List of permissions.
+    */
+   function retrieveFilePermissions($fileId) {
+     try {
+       $permissions = $this->service->permissions->listPermissions($fileId);
+       return $permissions->getItems();
+     } catch (Exception $e) {
+       print "An error occurred: " . $e->getMessage();
+     }
+     return NULL;
+   }
+
+    /**
+    * Print the Permission ID for an email address.
+    *
+    * @param Google_Service_Drive $service Drive API service instance.
+    * @param String $email Email address to retrieve ID for.
+    */
+   function printPermissionIdForEmail($gmail) {
+     try {
+       $permissionId = $this->service->permissions->getIdForEmail($gmail);
+       return $permissionId->getId();
+     } catch (Exception $e) {
+       print "An error occurred: " . $e->getMessage();
+     }
+   }
+
+   /**
+    * Print information about the specified permission.
+    *
+    * @param Google_Service_Drive $service Drive API service instance.
+    * @param String $fileId ID of the file to print permission for.
+    * @param String $permissionId ID of the permission to print.
+    */
+   public function printUserPermission($fileId, $permissionId) {
+     try {
+       $permission = $this->service->permissions->get($fileId, $permissionId);
+
+       print "Name: " . $permission->getName();
+       print "<br/>";
+       print "Role: " . $permission->getRole();
+       print "<br/>";
+       $additionalRoles = $permission->getAdditionalRoles();
+       if(!empty($additionalRoles)) {
+         foreach($additionalRoles as $additionalRole) {
+           print "Additional role: " . $additionalRole;
+         }
+       }
+     } catch (Exception $e) {
+         print"User is not permitted to access the resource.<br/>";
+        //print "An error occurred: " . $e->getMessage();
+     }
+   }
+
 }
 
 /**

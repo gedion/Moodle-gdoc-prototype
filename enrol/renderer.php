@@ -53,6 +53,7 @@ class core_enrol_renderer extends plugin_renderer_base {
         }
 
         $content = '';
+        $content = html_writer::link(new moodle_url('/repository/googledocs/share_doc.php'), get_string('share', 'enrol'));
         if (!empty($buttonhtml)) {
             $content .= $buttonhtml;
         }
