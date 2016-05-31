@@ -9,11 +9,14 @@
 require_once(dirname(dirname(dirname(__FILE__))) . '/config.php');
 require_once($CFG->dirroot . '/repository/googledocs/lib.php');
 
-$fileId = "0AFI2nRsxwgckUk9PVA";
+$fileId = "18jb3m2gmm_HEuwwFkUfe4kbszcKZ-8pVGIqYZpncIaA";
+$role = "reader"; //"owner", "writer" or "reader".
+$permaction = $_GET['permaction'];
+//print_object($_POST);
 
-getUserPermissions($fileId);
+get_user_permissions($fileId, $permaction);
 
-function getUserPermissions($fileId) {
+function get_user_permissions($fileId, $permaction) {
     global $DB, $USER, $PAGE;
 
     $googledocs_repo = $DB->get_record('repository', array ('type'=>'googledocs'));
@@ -26,50 +29,160 @@ function getUserPermissions($fileId) {
 
     //Get User info.
     $userinfo = $gdocrepo->get_user_info();
-    $gmail = $userinfo->email;
-    $permissions = $gdocrepo->retrieveFilePermissions($fileId);
-    $permissionId = $gdocrepo->printPermissionIdForEmail($gmail);
+    if($userinfo) {
+        $gmail = $userinfo->email;
+    }
 
-    //Get User permissions from Google for the given resource id.
-    $gdocrepo->printUserPermission($fileId, $permissionId);
-//    if(!$userperm) {
-//        print("User doesn't have permission to view this file.");
-//    }
-
-    //TODO:Set the active_flag for gmail if the exisitng gmailid is not same as the new one when checked.
-    //TODO:Insert permissionId in to google_refreshtokens table when user has an active gmailId associated to moodle.
-
-    //Get User permissions from moodle.
+    //Pull User ids and thier associative gmail account for moodle information.
     $table = 'google_refreshtokens';
     $select = 'gmail IS NOT NULL AND gmail_active = 1';
-    $userids = $DB->get_fieldset_select($table, 'userid',$select,array());
-    $gmails = $DB->get_fieldset_select($table, 'gmail',$select,array());
+    $params = null;
+    $fields = 'userid, gmail';
+    $sort = 'userid';
+    $gmailids = $DB->get_records_select_menu($table,$select,$params,$sort,$fields);
     
-    print_object($gmails);
-    if($userids) {
-        foreach($userids as $userid) {
-            print_object($userid);
-            //TODO: Display the user list with appropriate user permissions from moodle.
-            //TODO: Google drive repository permission set creation - repository/googledocs:manageactivities, repository/googledocs:view
+    //Type could be typically either "user", "group", "domain" or "default".
+    $type = "user";
+    
+    //Get User permissions from moodle.
+    if($gmailids) {
+        print("MOODLE PERMISSIONS: <br/>");
+        foreach($gmailids as $userid=>$gmail) {
+            print("<br/>UserId ".$userid);
+            //Fetch users with writer capability.
             if(has_capability('moodle/course:manageactivities', $ccontext, $userid)) {
-                print("User with userid ".$userid." is capable of editing google resource shared.<br/>");
-            } else if(has_capability('moodle/course:view', $ccontext, $userid)) {
-                print("User with userid ".$userid." is read only user.<br/>");
-            } else {
-                print("Permissions not available for the user : ". $userid);
+                print("(".$gmail."): WRITER.");
+                $role = "writer";
+            //Fetch users with reader capability.
+            }elseif (has_capability('moodle/block:view', $ccontext, $userid)) {
+                print("(".$gmail."): READER.");
             }
         }
+        print("<br/><br/>");
+    }
+
+    //Get user permissions from google for the given resource.
+    $permissions = $gdocrepo->retrieve_file_permissions($fileId);
+
+    //Set User permissions to given google resource based on the permaction.
+    switch($permaction) {
+        case 'insert':
+            insert_permission($fileId, $gdocrepo, $gmail, $type, $role, $permissions);
+            break;
+        case 'update':
+            update_permission($fileId, $gdocrepo, $gmail, $type, $role, $permissions);
+            break;
+        case 'patch':
+            patch_permission($fileId, $gdocrepo, $gmail, $type, $role, $permissions);
+            break;
+        case 'delete':
+            remove_permission($fileId, $gdocrepo, $gmail);
+            break;
+        default:
+            print "No action has been selected. Please choose one.";
     }
 }
 
-function getGoogleUsersForMoodle() {
-    global $DB, $USER;
-    
-    echo "get Google Users list";
-    $table = 'google_refreshtokens';
-    $select = "user = $USER->id";
-    //get_user_info();
-    $DB->get_records_select($table, $select);
+function insert_permission($fileId, $gdocrepo=null, $gmail, $type, $role, $permissions) {
+    if($gdocrepo) {
+        //Before permissions set.
+//        print("BEFORE: <br/><br/>");
+//        print_permissions($fileId, $gdocrepo);
 
-    //mdl_google_refreshtokens
+        foreach($permissions as $userperm) {
+            if($userperm->getEmailAddress() == $gmail) {
+                print("<br/> The file has been shared with the user(".$gmail.") already as a ".  strtoupper($userperm->getRole())."<br/>");
+                return;
+            }
+        }
+
+        //Insert permissions for the given file.
+        $insertedperm = $gdocrepo->insert_permission($fileId, $gmail, $type, $role);
+        if($insertedperm) {
+            print("<br/>Successfully inserted the permissions for the user.<br/>");
+        }
+
+//        //After permissions set.
+//        print("AFTER: <br/><br/>");
+//        print_permissions($fileId, $gdocrepo);
+    }
+}
+
+function print_permissions($fileId, $gdocrepo=null) {
+    //Get user permissions from google for the given resource.
+    $permissions = $gdocrepo->retrieve_file_permissions($fileId);
+        
+    //Print User permissions from Google for the given resource id.
+    if($permissions) {
+        print("****************************<br/>");
+        foreach($permissions as $userperm) {
+            $permissionid = $gdocrepo->print_permission_id_for_email($userperm->getEmailAddress());
+            print("Name: ");
+            print($userperm->getName());
+            print("<br/>Role: ");
+            print($userperm->getRole());
+            print("<br/>Permission Id: ");
+            print($permissionid);
+            print("<br/><br/>");
+        }
+        print("****************************<br/>");
+    }
+}
+
+function update_permission($fileId, $gdocrepo=null, $gmail, $type, $role, $permissions) {
+    if($gdocrepo) {
+        foreach($permissions as $userperm) {
+            if($userperm->getEmailAddress() == $gmail) {
+                $newrole = ($role=='writer')?'reader':'writer';
+                $permissionid = $gdocrepo->print_permission_id_for_email($gmail);
+
+                //Before permissions set.
+//                print("BEFORE: <br/><br/>");
+//                print_permissions($fileId, $gdocrepo);
+
+                $updateperm = $gdocrepo->update_permission($fileId, $permissionid, 'writer');
+                print_object($updateperm);
+                if($updateperm) {
+                    print("<br/>Successfully updated the permissions for the user.<br/>");  
+                }
+                //After permissions set.
+//                print("AFTER: <br/><br/>");
+//                print_permissions($fileId, $gdocrepo);
+                return;
+            }
+        }
+        print("<br/>The current user you specified doesn't have any permission for the file. So inserting now..<br/>");
+        insert_permission($fileId, $gdocrepo, $gmail, $type, $role, $permissions);
+    }
+}
+
+function patch_permission($fileId, $gdocrepo=null, $gmail, $type, $role, $permissions) {
+    if($gdocrepo) {
+        foreach($permissions as $userperm) {
+            if($userperm->getEmailAddress() == $gmail) {
+                $newrole = ($role=='writer')?'reader':'writer';
+                $permissionid = $gdocrepo->print_permission_id_for_email($gmail);
+
+                //Before permissions set.
+//                print("BEFORE: <br/><br/>");
+//                print_permissions($fileId, $gdocrepo);
+
+                $patchcperm = $gdocrepo->patch_permission($fileId, $permissionid, 'reader');
+                if($patchcperm) {
+                    print("<br/>Successfully updated the permissions for the user.<br/>");
+                }
+                //After permissions set.
+//                print("AFTER: <br/><br/>");
+//                print_permissions($fileId, $gdocrepo);
+                return;
+            }
+        }
+        print("<br/>The current user you specified doesn't have any permission for the file. So inserting now..<br/>");
+        insert_permission($fileId, $gdocrepo, $gmail, $type, $role, $permissions);
+    }
+}
+
+function remove_permission($fileId, $gdocrepo, $gmail) {
+    $permissionid = $gdocrepo->print_permission_id_for_email($gmail);
+    $gdocrepo->remove_permission($fileId, $permissionid);
 }

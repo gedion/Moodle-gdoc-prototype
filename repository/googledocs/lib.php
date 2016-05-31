@@ -81,7 +81,7 @@ class repository_googledocs extends repository {
         $this->client->setAccessType("offline");
         $this->client->setClientId(get_config('googledocs', 'clientid'));
         $this->client->setClientSecret(get_config('googledocs', 'secret'));
-        $this->client->setScopes(array(Google_Service_Drive::DRIVE_READONLY, 'email'));
+        $this->client->setScopes(array(Google_Service_Drive::DRIVE, 'email'));
         $this->client->setRedirectUri($callbackurl->out(false));
         $this->service = new Google_Service_Drive($this->client);
 
@@ -636,8 +636,8 @@ class repository_googledocs extends repository {
      *
      */
     private function delete_refresh_token() {
-        global $DB, $USER, $CFG;
-        $DB->execute("UPDATE ".$CFG->prefix."google_refreshtokens SET refreshtokenid=NULL WHERE userid=".$USER->id);
+        global $DB, $USER;
+        $DB->execute("UPDATE {google_refreshtokens} SET refreshtokenid=NULL WHERE userid=?", array($USER->id));
     }
 
     /**
@@ -668,47 +668,20 @@ class repository_googledocs extends repository {
     }
 
     /**
-    * Retrieve a list of File resources for a particular user.
-    *
-    * @param Google_Service_Drive $service Drive API service instance.
-    * @return Array List of Google_Service_Drive_DriveFile resources.
-    */
-   function retrieveAllFiles() {
-     $result = array();
-     $pageToken = NULL;
-
-     do {
-       try {
-         $parameters = array();
-         if ($pageToken) {
-           $parameters['pageToken'] = $pageToken;
-         }
-         $files = $this->service->files->listFiles($parameters);
-
-         $result = array_merge($result, $files->getItems());
-         $pageToken = $files->getNextPageToken();
-       } catch (Exception $e) {
-         print "An error occurred: " . $e->getMessage();
-         $pageToken = NULL;
-       }
-     } while ($pageToken);
-     return $result;
-   }
-
-    
-    /**
     * Retrieve a list of permissions.
     *
     * @param Google_Service_Drive $service Drive API service instance.
     * @param String $fileId ID of the file to retrieve permissions for.
     * @return Array List of permissions.
     */
-   function retrieveFilePermissions($fileId) {
+   function retrieve_file_permissions($fileId) {
      try {
        $permissions = $this->service->permissions->listPermissions($fileId);
        return $permissions->getItems();
      } catch (Exception $e) {
-       print "An error occurred: " . $e->getMessage();
+         //print("Can't access the file and so it's permissions.<br/>");
+        print "An error occurred: " . $e->getMessage();
+        print "<br/>";
      }
      return NULL;
    }
@@ -719,7 +692,7 @@ class repository_googledocs extends repository {
     * @param Google_Service_Drive $service Drive API service instance.
     * @param String $email Email address to retrieve ID for.
     */
-   function printPermissionIdForEmail($gmail) {
+   function print_permission_id_for_email($gmail) {
      try {
        $permissionId = $this->service->permissions->getIdForEmail($gmail);
        return $permissionId->getId();
@@ -735,13 +708,14 @@ class repository_googledocs extends repository {
     * @param String $fileId ID of the file to print permission for.
     * @param String $permissionId ID of the permission to print.
     */
-   public function printUserPermission($fileId, $permissionId) {
+   public function print_user_permission($fileId, $permissionId) {
      try {
        $permission = $this->service->permissions->get($fileId, $permissionId);
-
        print "Name: " . $permission->getName();
        print "<br/>";
        print "Role: " . $permission->getRole();
+       print "<br/>";
+       print "permission: " . $permissionId;
        print "<br/>";
        $additionalRoles = $permission->getAdditionalRoles();
        if(!empty($additionalRoles)) {
@@ -755,6 +729,96 @@ class repository_googledocs extends repository {
      }
    }
 
+   /**
+    * Insert a new permission.
+    *
+    * @param Google_Service_Drive $service Drive API service instance.
+    * @param String $fileId ID of the file to insert permission for.
+    * @param String $value User or group e-mail address, domain name or NULL for
+                          "default" type.
+    * @param String $type The value "user", "group", "domain" or "default".
+    * @param String $role The value "owner", "writer" or "reader".
+    * @return Google_Servie_Drive_Permission The inserted permission. NULL is
+    *     returned if an API error occurred.
+    */
+   function insert_permission($fileId, $value, $type, $role) {
+     $name = explode('@', $value);
+     $gmail = $value;
+     $newPermission = new Google_Service_Drive_Permission();
+     $newPermission->setValue($value);
+     $newPermission->setType($type);
+     $newPermission->setRole($role);
+     $newPermission->setEmailAddress($gmail);
+     $newPermission->setDomain($name[1]);
+     $newPermission->setName($name[0]);
+     try {
+       return $this->service->permissions->insert($fileId, $newPermission);
+     } catch (Exception $e) {
+       //print("Insert permission failed. Please retry with approriate permission role.");
+       print "An error occurred: " . $e->getMessage();
+     }
+     return NULL;
+   }
+
+   /**
+    * Remove a permission.
+    *
+    * @param Google_Service_Drive $service Drive API service instance.
+    * @param String $fileId ID of the file to remove the permission for.
+    * @param String $permissionId ID of the permission to remove.
+    */
+   function remove_permission($fileId, $permissionId) {
+     try {
+       $this->service->permissions->delete($fileId, $permissionId);
+       print("Succefully deleted the specified permission");
+     } catch (Exception $e) {
+       debugging("Delete failed...");
+       print "<br/> An error occurred: " . $e->getMessage() . "<br/>";
+     }
+   }
+
+   /**
+    * Update a permission's role.
+    *
+    * @param Google_Service_Drive $service Drive API service instance.
+    * @param String $fileId ID of the file to update permission for.
+    * @param String $permissionId ID of the permission to update.
+    * @param String $newRole The value "owner", "writer" or "reader".
+    * @return Google_Servie_Drive_Permission The updated permission. NULL is
+    *     returned if an API error occurred.
+    */
+   function update_permission($fileId, $permissionId, $newRole) {
+     try {
+       // First retrieve the permission from the API.
+       $permission = $this->service->permissions->get($fileId, $permissionId);
+       $permission->setRole($newRole);
+       return $this->service->permissions->update($fileId, $permissionId, $permission);
+     } catch (Exception $e) {
+       print "An error occurred: " . $e->getMessage();
+     }
+     return NULL;
+   }
+
+   /**
+    * Patch a permission's role.
+    *
+    * @param Google_Service_Drive $service Drive API service instance.
+    * @param String $fileId ID of the file to update permission for.
+    * @param String $permissionId ID of the permission to patch.
+    * @param String $newRole The value "owner", "writer" or "reader".
+    * @return Google_Servie_Drive_Permission The patched permission. NULL is
+    *     returned if an API error occurred.
+    */
+   function patch_permission($fileId, $permissionId, $newRole) {
+     $patchedPermission = new Google_Service_Drive_Permission();
+     $patchedPermission->setRole($newRole);
+     try {
+       return $this->service->permissions->patch($fileId, $permissionId, $patchedPermission);
+     } catch (Exception $e) {
+       print "An error occurred: " . $e->getMessage();
+     }
+     return NULL;
+   }
 }
 
 /**
