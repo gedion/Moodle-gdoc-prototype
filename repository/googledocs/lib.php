@@ -76,7 +76,6 @@ class repository_googledocs extends repository {
         parent::__construct($repositoryid, $context, $options, $readonly = 0);
 
         $callbackurl = new moodle_url(self::CALLBACKURL);
-
         $this->client = get_google_client();
         $this->client->setAccessType("offline");
         $this->client->setClientId(get_config('googledocs', 'clientid'));
@@ -640,6 +639,9 @@ class repository_googledocs extends repository {
         $DB->execute("UPDATE {google_refreshtokens} SET refreshtokenid=NULL WHERE userid=?", array($USER->id));
     }
 
+    public function get_name() {
+        return 'repository_googledocs';
+    }
     /**
      * Saves the refresh token to database.
      *

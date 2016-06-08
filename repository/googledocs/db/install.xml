@@ -9,6 +9,7 @@
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
         <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="user's id"/>
         <FIELD NAME="refreshtokenid" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Refresh token aqcuired from Google offline ap"/>
+        <FIELD NAME="gmail" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="google gmail"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
