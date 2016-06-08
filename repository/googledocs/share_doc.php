@@ -35,7 +35,7 @@ function get_user_permissions($fileId, $permaction) {
 
     //Pull User ids and thier associative gmail account for moodle information.
     $table = 'google_refreshtokens';
-    $select = 'gmail IS NOT NULL AND gmail_active = 1';
+    $select = 'gmail IS NOT NULL';
     $params = null;
     $fields = 'userid, gmail';
     $sort = 'userid';
@@ -52,13 +52,17 @@ function get_user_permissions($fileId, $permaction) {
             //Fetch users with writer capability.
             if(has_capability('moodle/course:manageactivities', $ccontext, $userid)) {
                 print("(".$gmail."): WRITER.");
-                $role = "writer";
+                $role = "reader";
             //Fetch users with reader capability.
             }elseif (has_capability('moodle/block:view', $ccontext, $userid)) {
                 print("(".$gmail."): READER.");
             }
         }
         print("<br/><br/>");
+    }
+
+    if($permaction == 'grpupdate') {
+        $gmail = 'googleapptestgrp@googlegroups.com';
     }
 
     //Get user permissions from google for the given resource.
@@ -70,6 +74,7 @@ function get_user_permissions($fileId, $permaction) {
             insert_permission($fileId, $gdocrepo, $gmail, $type, $role, $permissions);
             break;
         case 'update':
+        case 'grpupdate':
             update_permission($fileId, $gdocrepo, $gmail, $type, $role, $permissions);
             break;
         case 'patch':
@@ -140,7 +145,7 @@ function update_permission($fileId, $gdocrepo=null, $gmail, $type, $role, $permi
 //                print("BEFORE: <br/><br/>");
 //                print_permissions($fileId, $gdocrepo);
 
-                $updateperm = $gdocrepo->update_permission($fileId, $permissionid, 'writer');
+                $updateperm = $gdocrepo->update_permission($fileId, $permissionid, $newrole);
                 print_object($updateperm);
                 if($updateperm) {
                     print("<br/>Successfully updated the permissions for the user.<br/>");  
@@ -166,8 +171,8 @@ function patch_permission($fileId, $gdocrepo=null, $gmail, $type, $role, $permis
                 //Before permissions set.
 //                print("BEFORE: <br/><br/>");
 //                print_permissions($fileId, $gdocrepo);
-
-                $patchcperm = $gdocrepo->patch_permission($fileId, $permissionid, 'reader');
+                
+                $patchcperm = $gdocrepo->patch_permission($fileId, $permissionid, $newrole);
                 if($patchcperm) {
                     print("<br/>Successfully updated the permissions for the user.<br/>");
                 }

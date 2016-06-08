@@ -791,10 +791,10 @@ class repository_googledocs extends repository {
      try {
        // First retrieve the permission from the API.
        $permission = $this->service->permissions->get($fileId, $permissionId);
-       $value = $permission->getValue();
+       $value = $permission->getValue() ? '' : $permission->getEmailAddress();
        $type = $permission->getType();
        $this->remove_permission($fileId, $permissionId);
-       return $this->insert_permission($fileid, $value, $type, $newRole);
+       return $this->insert_permission($fileId, $value, $type, $newRole);
      } catch (Exception $e) {
        print "An error occurred: " . $e->getMessage();
      }
