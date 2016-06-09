@@ -679,7 +679,6 @@ class repository_googledocs extends repository {
        $permissions = $this->service->permissions->listPermissions($fileId);
        return $permissions->getItems();
      } catch (Exception $e) {
-         //print("Can't access the file and so it's permissions.<br/>");
         print "An error occurred: " . $e->getMessage();
         print "<br/>";
      }
@@ -724,8 +723,7 @@ class repository_googledocs extends repository {
          }
        }
      } catch (Exception $e) {
-         print"User is not permitted to access the resource.<br/>";
-        //print "An error occurred: " . $e->getMessage();
+        print "An error occurred: " . $e->getMessage();
      }
    }
 
@@ -754,7 +752,6 @@ class repository_googledocs extends repository {
      try {
        return $this->service->permissions->insert($fileId, $newPermission);
      } catch (Exception $e) {
-       //print("Insert permission failed. Please retry with approriate permission role.");
        print "An error occurred: " . $e->getMessage();
      }
      return NULL;
@@ -772,7 +769,6 @@ class repository_googledocs extends repository {
        $this->service->permissions->delete($fileId, $permissionId);
        print("Succefully deleted the specified permission");
      } catch (Exception $e) {
-       debugging("Delete failed...");
        print "<br/> An error occurred: " . $e->getMessage() . "<br/>";
      }
    }

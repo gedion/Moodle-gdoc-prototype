@@ -3209,37 +3209,11 @@ class curl {
         $this->response         = array();
         $this->rawresponse      = array();
         $this->responsefinished = false;
-        
-        // Set the URL as a curl option.
-        //curl_setopt($curl, CURLOPT_URL, $url);
 
         $this->apply_opt($curl, $options);
         if ($this->cache && $ret = $this->cache->get($this->options)) {
             return $ret;
         }
-
-//        curl_setopt($curl, CURLOPT_POSTFIELDS, "role=reader&name=chaitra"); // define what you want to post
-//        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); // return the output in string format
-
-//        foreach($options as $option) {
-//            foreach($option as $key=>$val) {
-//                $key = 'CURLOPT_'.strtoupper($key);
-//                $options[$key] = $val;
-//            }
-//        }
-
-        //print_object($options);
-        //curl_setopt_array($curl, $options);
-//        curl_setopt_array($curl, array(
-//            CURLOPT_RETURNTRANSFER => 1,  //notice, if your PHP > 5.1.3, no need to use this opt
-//            CURLOPT_URL            => $url,
-//            CURLOPT_POSTFIELDS     => "name=Chaitra Doddi&role=reader",
-//            CURLOPT_PUT            => 1
-//        ));
-//        
-//        $f = fopen('request.txt', 'w');
-//        curl_setopt($curl,CURLOPT_VERBOSE,true);
-//        curl_setopt($curl,CURLOPT_STDERR ,$f);
 
         $ret = curl_exec($curl);
         $this->info  = curl_getinfo($curl);
@@ -3485,7 +3459,6 @@ class curl {
      */
     public function put($url, $params = array(), $options = array()) {
         $params = json_decode($params, true);
-        debugging("inside put");
         if($params) {
             if(isset($params['file'])) {
                 $file = $params['file'];
@@ -3497,7 +3470,6 @@ class curl {
                 }
             }
             // $params is the raw post data
-            //$options['CURLOPT_POSTFIELDS'] = http_build_query($params);
             $options['CURLOPT_POSTFIELDS'] = $params;
         }
         $options['CURLOPT_PUT']        = 1;

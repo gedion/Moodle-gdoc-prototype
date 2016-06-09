@@ -67,9 +67,6 @@ class moodle_google_curlio extends Google_IO_Curl {
             case 'PUT':
                 $ret = $curl->put($url, $request->getPostBody());
                 break;
-            case 'PATCH':
-                $ret = $curl->put($url, $request->getPostBody());
-                break;
             case 'DELETE':
                 $ret = $curl->delete($url, $request->getPostBody());
                 break;
