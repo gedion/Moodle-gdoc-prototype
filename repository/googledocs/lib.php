@@ -636,7 +636,7 @@ class repository_googledocs extends repository {
      */
     private function delete_refresh_token() {
         global $DB, $USER;
-        $DB->execute("UPDATE {google_refreshtokens} SET refreshtokenid=NULL WHERE userid=?", array($USER->id));
+        $DB->delete_records('google_refreshtokens', array ('userid'=>$USER->id));
     }
 
     public function get_name() {

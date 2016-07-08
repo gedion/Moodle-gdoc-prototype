@@ -1,42 +1,32 @@
 <?php
 
+$callback = 'repository_googledocs_observer::manage_resources';
+
 $observers = array (
 
     array (
         'eventname'   => '\core\event\course_updated',
-        'includefile' => '/repository/googledocs/locallib.php',
-        'callback'    => 'googledocs_course_updated',
-        'internal'    => true
+        'callback'    => $callback
     ),
     array (
         'eventname'   => '\core\event\course_module_created',
-        'includefile' => '/repository/googledocs/locallib.php',
-        'callback'    => 'googledocs_course_module_created',
-        'internal'    => true
+        'callback'    => $callback
     ),
     array (
         'eventname'   => '\core\event\course_module_updated',
-        'includefile' => '/repository/googledocs/locallib.php',
-        'callback'    => 'googledocs_course_module_updated',
-        'internal'    => true
+        'callback'    => $callback
     ),
     array (
         'eventname'   => '\core\event\course_module_delted',
-        'includefile' => '/repository/googledocs/locallib.php',
-        'callback'    => 'googledocs_course_module_deleted',
-        'internal'    => true
+        'callback'    => $callback
     ),
     array (
         'eventname'   => '\core\event\role_assigned',
-        'includefile' => '/repository/googledocs/locallib.php',
-        'callback'    => 'googledocs_role_assigned',
-        'internal'    => true
+        'callback'    => $callback
     ),
     array (
         'eventname'   => '\core\event\role_unassigned',
-        'includefile' => '/repository/googledocs/locallib.php',
-        'callback'    => 'googledocs_role_unassigned',
-        'internal'    => true
+        'callback'    => $callback
     )
 
 );

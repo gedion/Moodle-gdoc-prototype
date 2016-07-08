@@ -1,13 +1,13 @@
 <?php
 
 defined('MOODLE_INTERNAL') || die();
-
 global $CFG;
 require_once($CFG->dirroot . '/course/tests/fixtures/format_theunittest.php');
-require_once($CFG->dirroot . '/repository/googledocs/locallib.php');
+require_once($CFG->dirroot . '/repository/googledocs/classes/observer.php');
 
 class test_repository_googledocs extends advanced_testcase {
 
+    const VARIABLE = 1;
 /**
   *  +-----------------------------------------------+----------------------+
   *  | refreshtokenid                                | gmail                |
@@ -32,6 +32,12 @@ class test_repository_googledocs extends advanced_testcase {
         return $repo;
     }
 
+    /**
+     * create_google_user_and_enrol
+     *
+     * @param mixed $course
+     * @return void
+     */
     private function create_google_user_and_enrol($course) {
         global $DB, $USER;
         $users = [];
@@ -95,7 +101,7 @@ class test_repository_googledocs extends advanced_testcase {
         $DB->insert_record('files', $filerecord);
     }
 
-    /** 
+    /**
       * @test
       *
       */
@@ -110,10 +116,10 @@ class test_repository_googledocs extends advanced_testcase {
         update_course($course);
         $events = $sink->get_events();
         $sink->close();
-        $this->asserttrue(googledocs_course_updated($events[8]));
+        $this->asserttrue(repository_googledocs_observer::manage_resources($events[8]));
     }
 
-    /** 
+    /**
       * @test
       *
       */
@@ -128,10 +134,10 @@ class test_repository_googledocs extends advanced_testcase {
         update_course($course);
         $events = $sink->get_events();
         $sink->close();
-        $this->asserttrue(googledocs_course_updated($events[8]));
+        $this->asserttrue(repository_googledocs_observer::manage_resources($events[8]));
     }
 
-    /** 
+    /**
       * @test
       *
       */
@@ -144,10 +150,10 @@ class test_repository_googledocs extends advanced_testcase {
         $this->create_resources($course);
         $events = $sink->get_events();
         $sink->close();
-        $this->asserttrue(googledocs_role_assigned($events[7]));
+        $this->asserttrue(repository_googledocs_observer::manage_resources($events[7]));
     }
 
-    /** 
+    /**
       * @test
       *
       */
@@ -160,13 +166,40 @@ class test_repository_googledocs extends advanced_testcase {
         $users = $this->create_google_user_and_enrol($course);
         update_course($course);
         $events = $sink->get_events();
-        googledocs_course_updated($events[8]);
+
+        repository_googledocs_observer::manage_resources($events[8]);
         $this->create_resources($course);
         $studentrole = $DB->get_record('role', array('shortname'=>'student'));
         role_unassign($studentrole->id, $users[3]->id, context_course::instance($course->id)->id);
         $events = $sink->get_events();
         $sink->close();
-        $this->asserttrue(googledocs_role_unassigned($events[9]));
+        $this->asserttrue(repository_googledocs_observer::manage_resources($events[9]));
     }
 
+    /**
+      * @test
+      *
+      */
+    public function googledocs_module_created() {
+        global $DB;
+        $this->asserttrue(false);
+    }
+
+    /**
+      * @test
+      *
+      */
+    public function googledocs_module_updated() {
+        global $DB;
+        $this->asserttrue(false);
+    }
+
+    /**
+      * @test
+      *
+      */
+    public function googledocs_module_deleted() {
+        global $DB;
+        $this->asserttrue(false);
+    }
 }
