@@ -51,6 +51,7 @@ function xmldb_repository_googledocs_upgrade($oldversion) {
         $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
         $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
         $table->add_field('refreshtokenid', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL, null, null);
+        $table->add_field('gmail', XMLDB_TYPE_VARCHAR, '60', null, XMLDB_NOTNULL, null, null);
         // Adding keys to table google_refreshtokens.
         $table->add_key('primary', XMLDB_KEY_PRIMARY, array('id'));
 
