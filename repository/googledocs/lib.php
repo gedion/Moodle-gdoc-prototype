@@ -664,7 +664,7 @@ class repository_googledocs extends repository {
 function repository_googledocs_extend_navigation_user_settings($navigation, $user, $usercontext, $course, $coursecontext) {
     $url = new moodle_url('/repository/googledocs/preference.php');
     $subsnode = navigation_node::create(get_string('syncyourgoogleaccount', 'repository_googledocs'), $url,
-            navigation_node::TYPE_SETTING, null, 'monitor', new pix_icon('i/settings', ''));
+            navigation_node::TYPE_SETTING, null, 'monitor', new pix_icon('i/navigationitem', ''));
 
     if (isset($subsnode) && !empty($navigation)) {
         $navigation->add_node($subsnode);
