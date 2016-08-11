@@ -3199,6 +3199,9 @@ class curl {
      * @return bool
      */
     protected function request($url, $options = array()) {
+        // Set the URL as a curl option.
+        $this->setopt(array('CURLOPT_URL' => $url));
+
         // Create curl instance.
         $curl = curl_init();
 
@@ -3209,37 +3212,11 @@ class curl {
         $this->response         = array();
         $this->rawresponse      = array();
         $this->responsefinished = false;
-        
-        // Set the URL as a curl option.
-        //curl_setopt($curl, CURLOPT_URL, $url);
 
         $this->apply_opt($curl, $options);
         if ($this->cache && $ret = $this->cache->get($this->options)) {
             return $ret;
         }
-
-//        curl_setopt($curl, CURLOPT_POSTFIELDS, "role=reader&name=chaitra"); // define what you want to post
-//        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true); // return the output in string format
-
-//        foreach($options as $option) {
-//            foreach($option as $key=>$val) {
-//                $key = 'CURLOPT_'.strtoupper($key);
-//                $options[$key] = $val;
-//            }
-//        }
-
-        //print_object($options);
-        //curl_setopt_array($curl, $options);
-//        curl_setopt_array($curl, array(
-//            CURLOPT_RETURNTRANSFER => 1,  //notice, if your PHP > 5.1.3, no need to use this opt
-//            CURLOPT_URL            => $url,
-//            CURLOPT_POSTFIELDS     => "name=Chaitra Doddi&role=reader",
-//            CURLOPT_PUT            => 1
-//        ));
-//        
-//        $f = fopen('request.txt', 'w');
-//        curl_setopt($curl,CURLOPT_VERBOSE,true);
-//        curl_setopt($curl,CURLOPT_STDERR ,$f);
 
         $ret = curl_exec($curl);
         $this->info  = curl_getinfo($curl);
@@ -3484,33 +3461,20 @@ class curl {
      * @return bool
      */
     public function put($url, $params = array(), $options = array()) {
-        $params = json_decode($params, true);
-        debugging("inside put");
-        if($params) {
-            if(isset($params['file'])) {
-                $file = $params['file'];
-                if (is_file($file)) {
-                    $fp   = fopen($file, 'r');
-                    $size = filesize($file);
-                    $options['CURLOPT_INFILESIZE'] = $size;
-                    $options['CURLOPT_INFILE']     = $fp;
-                }
-            }
-            // $params is the raw post data
-            //$options['CURLOPT_POSTFIELDS'] = http_build_query($params);
-            $options['CURLOPT_POSTFIELDS'] = $params;
+        $file = $params['file'];
+        if (!is_file($file)) {
+            return null;
         }
+        $fp   = fopen($file, 'r');
+        $size = filesize($file);
         $options['CURLOPT_PUT']        = 1;
-        $options['CURLOPT_URL']        = $url;
-        $options['CURLOPT_RETURNTRANSFER'] = 1;
-        
+        $options['CURLOPT_INFILESIZE'] = $size;
+        $options['CURLOPT_INFILE']     = $fp;
         if (!isset($this->options['CURLOPT_USERPWD'])) {
             $this->setopt(array('CURLOPT_USERPWD'=>'anonymous: noreply@moodle.org'));
         }
         $ret = $this->request($url, $options);
-        if(isset($fp)) {
-            fclose($fp);
-        }
+        fclose($fp);
         return $ret;
     }
 
@@ -3672,7 +3636,8 @@ class curl_cache {
      * @return bool|string
      */
     public function get($param) {
-        global $CFG, $USER;cleanup($this->ttl);
+        global $CFG, $USER;
+        $this->cleanup($this->ttl);
         $filename = 'u'.$USER->id.'_'.md5(serialize($param));
         if(file_exists($this->dir.$filename)) {
             $lasttime = filemtime($this->dir.$filename);

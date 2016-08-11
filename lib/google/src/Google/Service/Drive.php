@@ -2116,7 +2116,7 @@ class Google_Service_Drive_Permissions_Resource extends Google_Service_Resource
   {
     $params = array('fileId' => $fileId, 'permissionId' => $permissionId);
     $params = array_merge($params, $optParams);
-    return $this->call('delete', array($params), "Google_Service_Drive_Permission");
+    return $this->call('delete', array($params));
   }
 
   /**
