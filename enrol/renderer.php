@@ -53,6 +53,30 @@ class core_enrol_renderer extends plugin_renderer_base {
         }
 
         $content = '';
+
+        //TOBEDELETED: Google App Integration share doc temporary code starts here.
+        //Radio group to help user choose between insert, update and delete permissions.
+//        $content .= html_writer::tag('div', 'Manage Permissions');
+//
+//        $content .= html_writer::empty_tag('br');
+//        $content .= html_writer::start_tag('div', array('action' => new moodle_url('/repository/googledocs/share_doc.php'), 'method' => 'post'));
+//        $content .= html_writer::empty_tag('input', array('type'=>'radio', 'name'=>'share', 'id'=>'insert', 'value'=>'insert', 'checked'=>'checked'));
+//        $content .= html_writer::tag('label', 'Insert Permissions', array('permaction' => 'insert'));
+//        $content .= html_writer::empty_tag('br');
+//        $content .= html_writer::empty_tag('input', array('type'=>'radio', 'name'=>'share', 'id'=>'update', 'value'=>'update'));
+//        $content .= html_writer::tag('label', 'Update Permissions', array('permaction' => 'update'));
+//        $content .= html_writer::empty_tag('br');
+//        $content .= html_writer::empty_tag('input', array('type'=>'radio', 'name'=>'share', 'id'=>'delete', 'value'=>'delete'));
+//        $content .= html_writer::tag('label', 'Delete Permissions', array('permaction' => 'delete'));
+//        $content .= html_writer::empty_tag('br');
+//        $content .= html_writer::empty_tag('br');
+//        $content .= html_writer::empty_tag('br');
+//        $content .= html_writer::end_tag('div');
+
+        
+        $content .= html_writer::link(new moodle_url('/repository/googledocs/share_doc.php', array('permaction' => 'update')), get_string('share', 'enrol'));
+        //Google App Integration share doc temporary code ends here.
+        
         if (!empty($buttonhtml)) {
             $content .= $buttonhtml;
         }

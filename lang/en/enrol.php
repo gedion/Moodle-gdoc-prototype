@@ -116,6 +116,7 @@ $string['rolefromthiscourse'] = '{$a->role} (Assigned in this course)';
 $string['rolefrommetacourse'] = '{$a->role} (Inherited from parent course)';
 $string['rolefromcategory'] = '{$a->role} (Inherited from course category)';
 $string['rolefromsystem'] = '{$a->role} (Assigned at site level)';
+$string['share'] = 'Share Doc';
 $string['startdatetoday'] = 'Today';
 $string['synced'] = 'Synced';
 $string['testsettings'] = 'Test settings';
