@@ -753,8 +753,11 @@ class repository_googledocs extends repository {
      $newPermission->setEmailAddress($gmail);
      $newPermission->setDomain($name[1]);
      $newPermission->setName($name[0]);
+     $optParams = array(
+         'sendNotificationEmails' => false
+     );
      try {
-       return $this->service->permissions->insert($fileId, $newPermission);
+         return $this->service->permissions->insert($fileId, $newPermission, $optParams);
      } catch (Exception $e) {
        //print("Insert permission failed. Please retry with approriate permission role.");
        print "An error occurred: " . $e->getMessage();
