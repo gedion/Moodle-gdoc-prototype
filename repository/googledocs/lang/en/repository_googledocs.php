@@ -43,4 +43,6 @@ $string['googledriveconnection'] = 'Sign in with your email';
 $string['googledriveconnection_help'] = 'Once you authorize us to see your Google Drive you\'ll be able to submit your assignments directly from Google Drive, and create and share documents with members of your classes.';
 $string['googleemail'] = 'Email address';
 $string['googleemail_help'] = 'The email address associated with your Google account.';
+$string['pleaseconnect'] = 'Please connect your Google account to access Google Drive.';
+$string['filenotfound'] = 'The file was not found. Either it does not exist or you are not linked to the correct Google account and do not have permission.';
 

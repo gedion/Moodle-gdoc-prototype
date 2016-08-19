@@ -138,7 +138,7 @@ class repository_googledocs extends repository {
     public function check_login() {
         global $USER, $DB;
         $googlerefreshtokens = $DB->get_record('google_refreshtokens', array ('userid'=>$USER->id));
-        
+
         if ($googlerefreshtokens && !is_null($googlerefreshtokens->refreshtokenid)) {
             try {
                 $this->client->refreshToken($googlerefreshtokens->refreshtokenid);
@@ -510,6 +510,15 @@ class repository_googledocs extends repository {
      */
     public function supported_returntypes() {
         return FILE_INTERNAL | FILE_EXTERNAL | FILE_REFERENCE;
+    }
+
+    /**
+     * Tries to get the file to see if it exists and the user has permission
+     *
+     * @param int $id a google drive file id
+     */
+    public function try_file($id) {
+        $file = $this->service->files->get($id);
     }
 
     /**
