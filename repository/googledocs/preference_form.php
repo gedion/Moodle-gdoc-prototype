@@ -78,6 +78,9 @@ class edit_repository_googledocs_form extends moodleform {
     private function get_redirect_url_and_connection_status() {
         global $DB, $USER;
 
+        $context = context_user::instance($USER->id);
+        $repoinstances = repository::get_instances(array('currentcontext'=>$context, 'type'=>'googledocs'));
+        $googlerepoinstance =  array_values($repoinstances)[0];
         $googledocsrepo = $DB->get_record('repository', array ('type'=>'googledocs'));
         $googlerefreshtoken = $DB->get_record('google_refreshtokens', array ('userid'=>$USER->id));
         $repooptions = array(
@@ -85,8 +88,7 @@ class edit_repository_googledocs_form extends moodleform {
             'mimetypes' => array('.mp3')
         );
 
-        $context = context_user::instance($USER->id);
-        $repo = new repository_googledocs($googledocsrepo->id, $context, $repooptions);
+        $repo = new repository_googledocs($googlerepoinstance->id, $context, $repooptions);
         $code = optional_param('oauth2code', null, PARAM_RAW);
         if (!$googlerefreshtoken || (is_null($googlerefreshtoken->refreshtokenid) && empty($code))) {
             $redirecturl = $repo->get_login_url();

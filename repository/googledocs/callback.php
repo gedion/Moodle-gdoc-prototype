@@ -45,7 +45,10 @@ $js =<<<EOD
     <script type="text/javascript">
     if(window.opener){
         opener.location.reload();
-        window.close();
+        //window.close breaks behat tests
+        if(window.name != 'behat_repo_auth') {
+            window.close();
+        }
     } else {
         alert("{$strhttpsbug }");
     }

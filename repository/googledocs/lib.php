@@ -80,7 +80,7 @@ class repository_googledocs extends repository {
         $this->client->setAccessType("offline");
         $this->client->setClientId(get_config('googledocs', 'clientid'));
         $this->client->setClientSecret(get_config('googledocs', 'secret'));
-        $this->client->setScopes(array(Google_Service_Drive::DRIVE, 'email'));
+        $this->client->setScopes(array(Google_Service_Drive::DRIVE_FILE,Google_Service_Drive::DRIVE, 'email'));
         $this->client->setRedirectUri($callbackurl->out(false));
         $this->service = new Google_Service_Drive($this->client);
 
@@ -182,7 +182,7 @@ class repository_googledocs extends repository {
 
         $url = new moodle_url($this->client->createAuthUrl());
         $url->param('state', $returnurl->out_as_local_url(false));
-        return '<a target="_blank" href="'.$url->out(false).'">'.get_string('connectyourgoogleaccount', 'repository_googledocs').'</a>';
+        return '<a target="repo_auth" href="'.$url->out(false).'">'.get_string('connectyourgoogleaccount', 'repository_googledocs').'</a>';
     }
 
     /**

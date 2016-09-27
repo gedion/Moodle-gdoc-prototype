@@ -1,4 +1,4 @@
-@repository @repository_googledocs @javascript
+@repository @repository_googledocs @repository_googledocs_url @javascript
 Feature: Adding Google Drive as a link in URL resource.
 
   Scenario: Adding URL resource
@@ -20,5 +20,5 @@ Feature: Adding Google Drive as a link in URL resource.
     And I click on ".fp-content img[title='Test Doc.rtf']" "css_element"
     And I press "Select this file"
     And I press "Save and return to course"
-    And I follow "URL using google doc"
+    And I follow "Google Doc API url"
     Then "#docs-drive-logo" "css_element" should exist

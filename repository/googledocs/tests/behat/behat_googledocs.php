@@ -44,9 +44,9 @@ class behat_googledocs extends behat_base {
 
     /**
      * Used to determine if we need to login to Google Drive again.
-     * @var boolean
+     * @var string
      */
-    private static $loggedin = false;
+    private static $googlerefreshtoken = null;
 
     /**
      * Enables the Google Drive repo.
@@ -58,30 +58,72 @@ class behat_googledocs extends behat_base {
     public function google_drive_repository_is_enabled() {
         global $CFG;
         require_once($CFG->dirroot . '/repository/lib.php');
-        
+
         $fromform = array();
         $fromform['clientid'] = get_config('googledocs', 'clientid');
         $fromform['secret'] = get_config('googledocs', 'secret');
+        $fromform['pluginname'] = 'googledocs';
         if (empty($fromform['clientid']) || empty($fromform['secret'])) {
             debugging('Googledocs clientid/secret not set in config');
             throw new SkippedException;
         }
 
         $type = new repository_type('googledocs', $fromform, true);
-        if (!$repoid = $type->create()) {
+        if (!$typeid = $type->create()) {
             debugging('Cannot create Googledocs repo');
             throw new SkippedException;
         }
     }
-    
+
     /**
-     * Logins into Google Drive.
+     * Create the gdoc files.
+     *
+     */
+    public function create_test_files() {
+        error_log("create_test_files");
+        global $USER;
+        $context = context_user::instance($USER->id);
+        $repoinstances = repository::get_instances(array('currentcontext'=>$context, 'type'=>'googledocs'));
+        $googlerepoinstance =  array_values($repoinstances)[0];
+        $fileMetadata = new Google_Service_Drive_DriveFile(array(
+          'title' => 'My Document',
+          'mimeType' => 'application/vnd.google-apps.document'));
+        $file = $googlerepoinstance->service->files->create($fileMetadata);
+        error_log(json_encode($file));
+
+    }
+
+    /**
+     * Save token.
+     * @AfterScenario
+     *
+     */
+    public function tear_down() {
+       global $DB, $USER;
+       $googlerefreshtokens = $DB->get_record('google_refreshtokens', array ('userid'=>$USER->id));
+       if($googlerefreshtokens && $googlerefreshtokens->refreshtokenid) {
+           self::$googlerefreshtoken = $googlerefreshtokens->refreshtokenid;
+       }
+       //$this->create_test_files();
+       return true;
+    }
+
+    /**
+     *
+     * @Given /^I rename window name$/
+     */
+    public function I_rename_window_name() {
+        $this->getSession()->evaluateScript('window.name="behat_repo_auth"');
+    }
+    /**
+     * Connect to Google Drive.
      *
      * Make sure that Google Drive user/password is set in config.php.
      *
-     * @Given /^I login to Google Drive$/
+     * @Given /^I connect to Google Drive$/
      */
-    public function i_login_to_google_drive() {
+    public function i_connect_to_google_drive() {
+        global $DB, $USER;
 
         $config = get_config('googledocs');
         if (empty($config->behatuser) || empty($config->behatpassword)) {
@@ -95,32 +137,23 @@ class behat_googledocs extends behat_base {
         $password->addRow(array('Passwd', $config->behatpassword));
 
         // If running other Behat tests in which user already logged into
-        // Google Drive before, then session should still exist and Google will
-        // just ask for password
-        if (self::$loggedin) {
-            return array(
-                new Given('I press "Login to your account"'),
-                new Given('I switch to "repo_auth" window'),
-                new Given('I set the following fields to these values:', $password),
-                new Given('I press "Sign in"'),
-                new Given('I switch to the main window')
-            );
+        // Google Drive before, then bypass the login process
+        if (self::$googlerefreshtoken) {
+            $DB->insert_record('google_refreshtokens', array( 'userid' => $USER->id, 'refreshtokenid' => self::$googlerefreshtoken));
         } else {
             // Go through entire login process.
-            self::$loggedin = true;
-
             return array(
-                new Given('I press "Login to your account"'),
+                new Given('I follow "Manage your Google account"'),
+                new Given('I follow "Connect your Google account with Moodle"'),
                 new Given('I switch to "repo_auth" window'),
+                new Given('I rename window name'),
                 new Given('I set the following fields to these values:', $login),
                 new Given('I press "next"'),
                 new Given('I set the following fields to these values:', $password),
                 new Given('I press "Sign in"'),
                 new Given('I wait "2" seconds'),
-                new Given('I press "Allow"'),
-                new Given('I switch to the main window')
+                new Given('I press "Allow"')
             );
         }
-
     }
 }
