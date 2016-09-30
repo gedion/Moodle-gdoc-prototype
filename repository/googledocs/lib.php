@@ -753,8 +753,11 @@ class repository_googledocs extends repository {
      $newPermission->setEmailAddress($gmail);
      $newPermission->setDomain($name[1]);
      $newPermission->setName($name[0]);
+     $optParams = array(
+         'sendNotificationEmails' => false
+     );
      try {
-       return $this->service->permissions->insert($fileId, $newPermission);
+         return $this->service->permissions->insert($fileId, $newPermission, $optParams);
      } catch (Exception $e) {
        //print("Insert permission failed. Please retry with approriate permission role.");
        print "An error occurred: " . $e->getMessage();
@@ -769,10 +772,14 @@ class repository_googledocs extends repository {
     * @param String $fileId ID of the file to remove the permission for.
     * @param String $permissionId ID of the permission to remove.
     */
-   function remove_permission($fileId, $permissionId) {
+    function remove_permission($fileId, $permissionId) {
      try {
-       $this->service->permissions->delete($fileId, $permissionId);
-       print("Succefully deleted the specified permission");
+         $permission = $this->service->permissions->get($fileId, $permissionId);
+         $role = $permission->getRole();
+         if ($role != 'owner') {
+             $this->service->permissions->delete($fileId, $permissionId);
+             print("Succefully deleted the specified permission");
+         }
      } catch (Exception $e) {
        debugging("Delete failed...");
        print "<br/> An error occurred: " . $e->getMessage() . "<br/>";
