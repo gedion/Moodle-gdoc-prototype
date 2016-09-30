@@ -28,6 +28,8 @@ defined('MOODLE_INTERNAL') || die;
 require_once("$CFG->libdir/filelib.php");
 require_once("$CFG->libdir/resourcelib.php");
 require_once("$CFG->dirroot/mod/resource/lib.php");
+require_once($CFG->dirroot . '/repository/googledocs/preference_form.php');
+require_once($CFG->dirroot . '/repository/googledocs/lib.php');
 
 /**
  * Redirected to migrated resource if needed,
@@ -61,7 +63,7 @@ function resource_redirect_if_migrated($oldid, $cmid) {
  * @return does not return
  */
 function resource_display_embed($resource, $cm, $course, $file) {
-    global $CFG, $PAGE, $OUTPUT;
+    global $CFG, $PAGE, $OUTPUT, $DB, $USER;
 
     $clicktoopen = resource_get_clicktoopen($file, $resource->revision);
 
@@ -100,7 +102,32 @@ function resource_display_embed($resource, $cm, $course, $file) {
     resource_print_header($resource, $cm, $course);
     resource_print_heading($resource, $cm, $course);
 
-    echo $code;
+    $form = new edit_repository_googledocs_form();
+    list($redirecturl, $status, $email) = edit_repository_googledocs_form::get_redirect_url_and_connection_status();
+    $googledocs_repo = $DB->get_record('repository', array ('type'=>'googledocs'));
+    $context = context_user::instance($USER->id);
+    $repo_options = array();
+    $gdocrepo = new repository_googledocs($googledocs_repo->id, $context, $repo_options);
+    // Display a log in form if trying to embed a google doc and the user is not signed in
+    if ($file->get_repository_id() == $googledocs_repo->id) {
+        if ($status != 'connected') {
+            $form->display();
+        } else {
+            try {
+                // Try to get the file to catch file not found errors before embedding.
+                $gdocrepo->try_file($file->get_source());
+                echo $code;
+            } catch (Exception $e) {
+                // Can make this more official than a print statement.
+                print get_string('filenotfound', 'repository_googledocs');
+            }
+        }
+    } else {
+        // Not a Google doc, so just output normally.
+        echo $code;
+    }
+
+
 
     resource_print_intro($resource, $cm, $course);
 

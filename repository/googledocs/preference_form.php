@@ -49,9 +49,15 @@ class edit_repository_googledocs_form extends moodleform {
         $mform->addElement('html', html_writer::tag('span', '', array('class' => 'notconnected', 'id' => 'connection-error')));
         $mform->addElement('header', 'googledocsheader', get_string('driveconnection', 'repository_googledocs'));
         $mform->addHelpButton('googledocsheader', 'googledriveconnection', 'repository_googledocs');
-        $mform->addElement('static', 'url', get_string('url'), GOOGLE_DRIVE_URL);
 
         list($redirecturl, $status, $email) = $this->get_redirect_url_and_connection_status();
+        if ($status != 'connected') {
+            $pleaseelement = html_writer::tag('span', get_string('pleaseconnect', 'repository_googledocs'),
+                array('class' => 'pleaseconnect', 'id' => 'pleaseconnect'));
+            $mform->addElement('static', 'pleaseconnect', '', $pleaseelement);
+        }
+        $mform->addElement('static', 'url', get_string('url'), GOOGLE_DRIVE_URL);
+
         if ($status == 'connected') {
             $statuselement = html_writer::tag('span', get_string('connected', 'repository_googledocs'),
                 array('class' => 'connected', 'id' => 'connection-status'));
@@ -71,11 +77,11 @@ class edit_repository_googledocs_form extends moodleform {
     }
 
     /**
-     * returns google redirect url(which can be either 
+     * returns google redirect url(which can be either
      * a login to google url or a revoke token url) and
      * a login status
      */
-    private function get_redirect_url_and_connection_status() {
+    public function get_redirect_url_and_connection_status() {
         global $DB, $USER;
 
         $context = context_user::instance($USER->id);
